@@ -10,22 +10,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [
+        contents: [
           {
-            role: "user",
-            content: `${prompt}\n\nOriginal content:\n"""\n${content}\n"""`,
+            parts: [
+              {
+                text: `${prompt}\n\nOriginal content:\n"""\n${content}\n"""`,
+              },
+            ],
           },
         ],
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0.8,
+        },
       }),
     });
 
@@ -35,9 +39,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: data.error.message });
     }
 
-    const text = data.content?.map((c) => c.text || "").join("") || "";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Error generating content.";
     return res.status(200).json({ text });
+
   } catch (error) {
     return res.status(500).json({ error: "Server error: " + error.message });
   }
-      }
+}
